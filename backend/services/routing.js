@@ -45,6 +45,42 @@ const demoRoutes = [
   },
 ];
 
+// ORS waytype values: 1=State Road, 2=Road, 3=Street, 6=Cycleway (all "major" -
+// busier, more likely lit/traveled). 4=Path, 5=Track, 7=Footway, 8=Steps
+// (all "minor" - narrower, more isolated).
+function analyzeWaytype(extras) {
+  const summary = extras?.waytypes?.summary;
+  if (!summary || summary.length === 0) return { majorPercent: 60, minorPercent: 10 };
+
+  const totalDistance = summary.reduce((s, x) => s + x.distance, 0) || 1;
+  const majorTypes = [1, 2, 3, 6];
+  const minorTypes = [4, 5, 7, 8];
+
+  let majorDist = 0;
+  let minorDist = 0;
+  summary.forEach((s) => {
+    if (majorTypes.includes(s.value)) majorDist += s.distance;
+    else if (minorTypes.includes(s.value)) minorDist += s.distance;
+  });
+
+  return {
+    majorPercent: Math.round((majorDist / totalDistance) * 100),
+    minorPercent: Math.round((minorDist / totalDistance) * 100),
+  };
+}
+
+// Pick a handful of evenly spaced points along a route's own path so we can
+// re-trace it in a single-route request (see fetchRoadComposition below).
+function samplePoints(coordinates, maxPoints = 8) {
+  if (coordinates.length <= maxPoints) return coordinates;
+  const step = (coordinates.length - 1) / (maxPoints - 1);
+  const points = [];
+  for (let i = 0; i < maxPoints; i++) {
+    points.push(coordinates[Math.round(i * step)]);
+  }
+  return points;
+}
+
 function formatRoutes(features) {
   return features.map((feature, index) => {
     const coordinates = feature.geometry.coordinates.map(([lng, lat]) => [lat, lng]);
@@ -60,12 +96,18 @@ function formatRoutes(features) {
   });
 }
 
-async function requestDirections(startCoordinates, destinationCoordinates, useAlternatives) {
+async function requestDirections(startCoordinates, destinationCoordinates, { useAlternatives, extraInfo }) {
   const body = {
     coordinates: [startCoordinates, destinationCoordinates],
   };
   if (useAlternatives) {
     body.alternative_routes = { share_factor: 0.6, target_count: 3 };
+  }
+  // NOTE: extra_info is deliberately NOT combined with alternative_routes here -
+  // ORS has a known bug where the two together return misaligned extra_info
+  // data. We fetch waytype data in a SEPARATE single-route call per route instead.
+  if (extraInfo) {
+    body.extra_info = ["waytype", "surface"];
   }
 
   const response = await axios.post(
@@ -80,6 +122,35 @@ async function requestDirections(startCoordinates, destinationCoordinates, useAl
   );
 
   return response.data.features || [];
+}
+
+// Re-trace ONE specific route's own path (via its own sampled waypoints, no
+// alternatives requested) purely to get clean, correctly-scoped waytype data
+// for that exact route.
+async function fetchRoadComposition(routeCoordinatesLatLng) {
+  const sampled = samplePoints(routeCoordinatesLatLng, 8);
+  const waypoints = sampled.map(([lat, lng]) => [lng, lat]); // ORS wants [lng, lat]
+
+  try {
+    const response = await axios.post(
+      "https://api.openrouteservice.org/v2/directions/foot-walking/geojson",
+      {
+        coordinates: waypoints, // all sampled points, in order - traces the real path
+        extra_info: ["waytype", "surface"],
+      },
+      {
+        headers: {
+          Authorization: process.env.ORS_API_KEY,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+    const features = response.data.features || [];
+    return analyzeWaytype(features[0]?.properties?.extras);
+  } catch (err) {
+    console.error("Road-composition lookup failed for a route, using default:", err.response?.data || err.message);
+    return { majorPercent: 60, minorPercent: 10 };
+  }
 }
 
 async function getRoutes(start, destination) {
@@ -100,38 +171,55 @@ async function getRoutes(start, destination) {
   console.log("Start coordinates:", startCoordinates);
   console.log("Destination coordinates:", destinationCoordinates);
 
-  // Try WITH alternative routes first (best case: 3 real, distinct routes)
   try {
-    const features = await requestDirections(startCoordinates, destinationCoordinates, true);
+    const features = await requestDirections(startCoordinates, destinationCoordinates, {
+      useAlternatives: true,
+      extraInfo: false,
+    });
     if (features.length === 0) throw new Error("No routes returned from OpenRouteService");
+
+    const baseRoutes = formatRoutes(features);
+
+    // Fetch real road-composition data per route, in parallel
+    const routesWithComposition = await Promise.all(
+      baseRoutes.map(async (route) => {
+        const roadComposition = await fetchRoadComposition(route.coordinates);
+        return { ...route, roadComposition };
+      })
+    );
 
     return {
       start: startCoordinates,
       destination: destinationCoordinates,
-      routes: formatRoutes(features),
+      routes: routesWithComposition,
     };
   } catch (error) {
     const orsCode = error.response?.data?.error?.code;
 
-    // Code 2004 = route too long for the alternative-routes algorithm.
-    // Retry with a single real route instead of giving up.
     if (orsCode === 2004) {
       console.log("Distance too long for alternatives — retrying with a single real route.");
       try {
-        const features = await requestDirections(startCoordinates, destinationCoordinates, false);
+        const features = await requestDirections(startCoordinates, destinationCoordinates, {
+          useAlternatives: false,
+          extraInfo: true,
+        });
         if (features.length === 0) throw new Error("No route returned from OpenRouteService");
+
+        const baseRoutes = formatRoutes(features);
+        const routesWithComposition = baseRoutes.map((route, i) => ({
+          ...route,
+          roadComposition: analyzeWaytype(features[i]?.properties?.extras),
+        }));
 
         return {
           start: startCoordinates,
           destination: destinationCoordinates,
-          routes: formatRoutes(features),
-          note: "Only one real route was available — this trip is too long for route alternatives (100km limit). This app is designed for walking-scale distances within a city.",
+          routes: routesWithComposition,
+          note: "Only one real route was available — this trip is too long for route alternatives (100km limit).",
         };
       } catch (retryError) {
         console.error("Single-route retry also failed:", retryError.response?.data || retryError.message);
-        throw new Error(
-          "This trip is too far for walking directions. Try two points within the same city."
-        );
+        throw new Error("This trip is too far for walking directions. Try two points within the same city.");
       }
     }
 
@@ -146,6 +234,7 @@ async function geocodeLocation(location) {
       api_key: process.env.ORS_API_KEY,
       text: location,
       size: 1,
+      "boundary.country": "IN",
     },
   });
 
@@ -153,6 +242,8 @@ async function geocodeLocation(location) {
   if (!features || features.length === 0) {
     throw new Error(`Location not found: ${location}`);
   }
+
+  console.log(`Geocoded "${location}" ->`, features[0].geometry.coordinates, "(", features[0].properties.label, ")");
 
   return features[0].geometry.coordinates;
 }

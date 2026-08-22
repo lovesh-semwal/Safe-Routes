@@ -507,7 +507,7 @@ function Home() {
         {selected && (
           <section className="mt-8!">
             <SafetyScore
-              score={selected.safety}
+              route={selected}
             />
           </section>
         )}
