@@ -1,698 +1,967 @@
-# 🛡️ SafeRoutes — Safety-Weighted Navigation
+# 🛡️ Safe-Routes
 
-> **Don't just find the shortest route. Find the safer route.**
+### 🚶 Find safer routes. Travel smarter. Stay protected.
 
-SafeRoutes is a safety-focused pedestrian navigation platform designed to recommend routes based not only on distance and travel time, but also on **safety-related factors** such as lighting, crime risk, CCTV coverage, pedestrian activity, and isolation.
+**Safe-Routes** is a smart route-planning web application designed to help users find and compare routes based not only on distance and travel time, but also on **safety-related factors**.
 
-The project was developed as a Buildathon solution for the problem statement:
+Instead of simply asking _"What is the shortest route?"_, Safe-Routes aims to answer:
 
-**"Safe Routes for Women — Safety-Weighted Navigation"**
+> **"What is the safer route to my destination?"**
 
----
-
-## 🚨 Problem Statement
-
-Traditional navigation systems generally optimize routes for:
-
-- Shortest distance
-- Fastest travel time
-- Traffic conditions
-
-However, for pedestrians—especially women traveling alone or at night—the shortest route may not always be the safest.
-
-A route may be short but pass through:
-
-- Poorly lit areas
-- Isolated roads
-- High-risk zones
-- Areas with low pedestrian activity
-- Roads with limited surveillance
-
-SafeRoutes addresses this problem by treating **safety as a core routing factor**, rather than simply displaying safety information as a map overlay.
+The project combines a modern React frontend with a Node.js/Express backend and real-world routing data to provide users with useful route information.
 
 ---
 
-# 💡 Our Solution
+## 🌟 Features
 
-SafeRoutes provides users with multiple route options and assigns each route a **Safety Score out of 100**.
-
-Instead of asking:
-
-> "Which route is fastest?"
-
-SafeRoutes asks:
-
-> "Which route provides the best balance between safety, distance, and travel time?"
-
-The system evaluates different safety factors and recommends the route with the highest safety score.
-
----
-
-# ✨ Key Features
-
-## 🗺️ Safety-Focused Navigation
+### 🗺️ Smart Route Search
 
 Users can enter:
 
 - Starting location
 - Destination
+- Travel preferences
 
-The system then calculates available pedestrian routes.
+The application retrieves real route information and displays available routes.
 
----
+### 🛡️ Safety-Focused Routing
 
-## 🛡️ Safety Score
+Safe-Routes is designed to consider safety-related information while comparing routes.
 
-Every route receives a safety score between **0 and 100**.
+Routes can be evaluated using factors such as:
+
+- Route distance
+- Estimated travel time
+- Road conditions/data availability
+- Safety-related route information
+- Overall route suitability
+
+### 📍 Real-Time Route Data
+
+The application uses a routing API to retrieve real-world route information instead of relying on static or dummy routes.
+
+### 📊 Route Comparison
+
+Multiple route options can be compared so users can make a more informed decision.
 
 Example:
 
-| Route             | Safety Score | Risk   |
-| ----------------- | -----------: | ------ |
-| 🟢 Safest Route   |       92/100 | Low    |
-| 🟡 Balanced Route |       78/100 | Medium |
-| 🔴 Fastest Route  |       61/100 | High   |
+| Route   | Distance |   Time | Safety      |
+| ------- | -------: | -----: | ----------- |
+| Route A |   5.2 km | 14 min | 🟢 Safer    |
+| Route B |   4.6 km | 11 min | 🟡 Moderate |
+| Route C |   6.1 km | 16 min | 🟢 Safer    |
 
-The score helps users understand the safety level of each route before choosing it.
+### 📱 Responsive UI
+
+The application is designed to work across:
+
+- 💻 Desktop
+- 📱 Mobile
+- 📟 Tablet
+
+### ⚡ Fast & Modern
+
+Built using modern web technologies including React, Vite, Node.js and Express.
 
 ---
 
-# ⚖️ Safety-Weighted Routing
+# 🎯 Problem Statement
 
-SafeRoutes evaluates multiple safety factors.
+Traditional navigation applications generally prioritize factors such as:
 
-Current safety model:
+- Shortest distance
+- Fastest travel time
+- Traffic conditions
 
-````text
-Lighting        → 30%
-Crime Risk      → 25%
-CCTV Coverage   → 15%
-Activity        → 10%
-Isolation       → 20%
-Conceptually:
+However, the **shortest route is not always the safest route**.
 
-Safety Score =
-    Lighting × 0.30
-  + Crime Risk × 0.25
-  + CCTV × 0.15
-  + Activity × 0.10
-  + Isolation × 0.20
+A route may pass through areas that users would prefer to avoid, especially when travelling:
 
-The weights can be modified depending on user preferences and future safety datasets.
+- At night
+- Alone
+- In unfamiliar locations
+- On foot
+- During emergencies
 
-🎛️ Safety Preferences
+Safe-Routes aims to provide an additional safety-focused layer to route planning.
 
-Users can customize route evaluation using safety preferences.
+---
 
-Available preferences
-💡 Avoid poorly lit areas
-👥 Avoid isolated areas
-📷 Prefer CCTV coverage
-⚠️ Avoid high-risk zones
+# 💡 Proposed Solution
 
-This allows the routing system to adapt to different user priorities.
-🗺️ Interactive Map
+Safe-Routes provides a route-planning platform where users can enter their source and destination and receive real route options.
 
-SafeRoutes uses an interactive map to visualize routes.
+Instead of displaying only distance and duration, the application is designed to evaluate routes from a **safety perspective**.
 
-Routes are represented using safety colors:
+The system can combine routing information with safety-related data to generate a safety-oriented recommendation.
 
-🟢 Green  → Safer route
-🟡 Yellow → Medium-risk route
-🔴 Red    → Higher-risk route
+The goal is not to replace existing navigation applications, but to provide an additional **safety-focused decision layer**.
 
-The map also highlights potentially unsafe areas such as:
+---
 
-Risk zones
-Poor lighting areas
-Other safety-related areas
-🧠 Why SafeRoutes Is Different
+# 🏗️ System Architecture
 
-Traditional navigation:
-Start
-  ↓
-Distance / Time
-  ↓
-Shortest Route
-SafeRoutes:
-Start + Destination
-        ↓
-   Route Options
-        ↓
-Safety Analysis
-        ↓
-┌─────────────────────┐
-│ Lighting            │
-│ Crime Risk          │
-│ CCTV Coverage       │
-│ Pedestrian Activity │
-│ Isolation           │
-└─────────────────────┘
-        ↓
- Safety Score
-        ↓
-Safer Route Recommendation
-Safety is therefore part of the routing decision, not just a visual layer.
+```text
+                    ┌──────────────────────┐
+                    │       User           │
+                    │   Web Browser       │
+                    └──────────┬───────────┘
+                               │
+                               ▼
+                    ┌──────────────────────┐
+                    │   React + Vite       │
+                    │     Frontend         │
+                    └──────────┬───────────┘
+                               │
+                         REST API Request
+                               │
+                               ▼
+                    ┌──────────────────────┐
+                    │   Node.js + Express  │
+                    │      Backend         │
+                    └──────────┬───────────┘
+                               │
+                    ┌──────────┴───────────┐
+                    │                      │
+                    ▼                      ▼
+          ┌─────────────────┐    ┌─────────────────┐
+          │ Routing API     │    │ Safety Data     │
+          │ / Route Engine  │    │ / Analysis      │
+          └─────────────────┘    └─────────────────┘
+                    │
+                    ▼
+          ┌─────────────────────┐
+          │ Route Processing &  │
+          │ Safety Evaluation   │
+          └──────────┬──────────┘
+                     │
+                     ▼
+          ┌─────────────────────┐
+          │ Safe Route Results  │
+          └─────────────────────┘
+```
 
-🏗️ System Architecture
-                    ┌──────────────────┐
-                    │      USER        │
-                    └────────┬─────────┘
-                             │
-                             ↓
-                    ┌──────────────────┐
-                    │ React Frontend   │
-                    │                  │
-                    │ • Home           │
-                    │ • Map            │
-                    │ • Route Cards    │
-                    │ • Filters        │
-                    └────────┬─────────┘
-                             │
-                             ↓
-                    ┌──────────────────┐
-                    │    API Service   │
-                    │     Axios        │
-                    └────────┬─────────┘
-                             │
-                             ↓
-                    ┌──────────────────┐
-                    │ Node.js +        │
-                    │ Express Backend  │
-                    └────────┬─────────┘
-                             │
-                ┌────────────┴────────────┐
-                ↓                         ↓
-       ┌─────────────────┐       ┌─────────────────┐
-       │ Routing Service │       │ Safety Engine   │
-       │                 │       │                 │
-       │ OpenRouteService│       │ Safety Score    │
-       │ + fallback      │       │ Calculation     │
-       └────────┬────────┘       └────────┬────────┘
-                │                         │
-                └────────────┬────────────┘
-                             ↓
-                    ┌──────────────────┐
-                    │ Route Results    │
-                    │                  │
-                    │ Score            │
-                    │ Distance         │
-                    │ Time             │
-                    │ Risk             │
-                    │ Factors          │
-                    └────────┬─────────┘
-                             │
-                             ↓
-                    ┌──────────────────┐
-                    │ Map + Route      │
-                    │ Comparison       │
-                    └──────────────────┘
-📁 Project Structure
+---
 
-SafeRoutes/
+# 🛠️ Technology Stack
+
+## Frontend
+
+| Technology   | Purpose                         |
+| ------------ | ------------------------------- |
+| React.js     | Building the user interface     |
+| Vite         | Frontend development/build tool |
+| JavaScript   | Application logic               |
+| Tailwind CSS | Styling and responsive UI       |
+| Axios        | API communication               |
+| React Router | Client-side navigation          |
+
+---
+
+## Backend
+
+| Technology | Purpose                         |
+| ---------- | ------------------------------- |
+| Node.js    | Backend runtime                 |
+| Express.js | REST API framework              |
+| Axios      | External API requests           |
+| CORS       | Cross-origin communication      |
+| dotenv     | Environment variable management |
+
+---
+
+## APIs
+
+Safe-Routes uses a routing service to retrieve real-world route information.
+
+The backend communicates with the routing API and processes the returned route data before sending the required information to the frontend.
+
+> **Important:** API keys are stored in environment variables and are never committed to GitHub.
+
+---
+
+# 📂 Project Structure
+
+The project is organized into separate frontend and backend applications.
+
+```text
+safe-routes/
 │
 ├── frontend/
+│   │
 │   ├── public/
 │   │
 │   ├── src/
+│   │   ├── assets/
 │   │   ├── components/
-│   │   │   ├── Map.jsx
-│   │   │   ├── RouteCard.jsx
-│   │   │   ├── SafetyScore.jsx
-│   │   │   └── SafetyFilters.jsx
-│   │   │
 │   │   ├── pages/
-│   │   │   └── Home.jsx
-│   │   │
 │   │   ├── services/
-│   │   │   └── api.js
-│   │   │
 │   │   ├── App.jsx
 │   │   ├── main.jsx
 │   │   └── index.css
 │   │
-│   ├── .env
 │   ├── package.json
-│   └── vite.config.js
+│   ├── vite.config.js
+│   └── ...
 │
 ├── backend/
-│   ├── data/
-│   │   └── safetyData.json
 │   │
+│   ├── controllers/
 │   ├── routes/
 │   │   └── routeRoutes.js
 │   │
 │   ├── services/
-│   │   ├── routing.js
-│   │   └── safetyScore.js
-│   │
-│   ├── .env
+│   ├── models/
+│   ├── middleware/
+│   ├── server.js
+│   ├── app.js
 │   ├── package.json
-│   └── server.js
+│   └── .env
 │
 ├── .gitignore
 └── README.md
+```
 
-🛠️ Technology Stack
-Frontend
-React
-Vite
-JavaScript
-Tailwind CSS
-React Leaflet
-Leaflet
-Axios
-Lucide React
-Backend
-Node.js
-Express.js
-Axios
-dotenv
-CORS
-Maps & Routing
-OpenStreetMap
-Leaflet
-OpenRouteService
-Algorithm
-Weighted Safety Scoring
-Route Comparison
-Safety Preference Weighting
+---
 
-🔄 Application Flow
-1. User enters starting location
-              ↓
-2. User enters destination
-              ↓
-3. User selects safety preferences
-              ↓
-4. Frontend sends request to backend
-              ↓
-5. Backend geocodes locations
-              ↓
-6. Routing service calculates routes
-              ↓
-7. Safety engine evaluates routes
-              ↓
-8. Safety score is generated
-              ↓
-9. Routes are ranked
-              ↓
-10. Safest route is recommended
-              ↓
-11. Routes are displayed on map
-              ↓
-12. User compares and selects a route
-🚀 Getting Started
-Prerequisites
+# 🔄 How Safe-Routes Works
 
-Make sure you have installed:
+### Step 1 — User enters locations
 
-Node.js
-npm
-Git
+The user provides:
 
-Check your versions:
+```text
+Start Location
+        ↓
+Destination
+```
 
-node --version
-npm --version
-git --version
-📥 Installation
+### Step 2 — Frontend sends request
 
-Clone the repository:
+The React application sends the information to the backend.
 
-git clone https://github.com/YOUR_USERNAME/SafeRoutes.git
+Example:
 
-Move into the project:
-
-cd SafeRoutes
-🎨 Frontend Setup
-cd frontend
-npm install
-Create:
-
-frontend/.env
-
-Add:
-
-VITE_API_URL=http://localhost:5000/api
-
-Start the frontend:
-
-npm run dev
-
-The frontend will normally run at:
-
-http://localhost:5173
-⚙️ Backend Setup
-
-Open another terminal.
-
-cd backend
-npm install
-
-Create:
-
-backend/.env
-Add:
-
-PORT=5000
-ORS_API_KEY=your_openrouteservice_api_key
-
-Start the backend:
-
-npm run dev
-
-The backend will run at:
-
-http://localhost:5000
-🔑 OpenRouteService API
-
-SafeRoutes uses OpenRouteService for pedestrian routing and geocoding.
-
-Create an OpenRouteService account and generate an API key.
-
-Then add it to:
-
-backend/.env
-ORS_API_KEY=your_api_key_here
-Important
-
-Never commit your API key to GitHub.
-
-Your .gitignore should contain:
-
-node_modules/
-.env
-.env.*
-!.env.example
-🧪 Demo/Fallback Mode
-
-SafeRoutes also includes a fallback mode for development and demonstrations.
-
-If no OpenRouteService API key is available:
-
-ORS_API_KEY
-     ↓
-Not available
-     ↓
-Demo routing data
-     ↓
-Safety engine
-     ↓
-Route comparison
-
-This allows the application to continue running during development.
-🔌 API
-Get Safe Routes
-Endpoint
+```http
 POST /api/routes
-Request
+```
 
+### Step 3 — Backend processes request
+
+The Express server receives the request and validates the required information.
+
+### Step 4 — Routing API request
+
+The backend communicates with the routing service to retrieve real route information.
+
+### Step 5 — Route analysis
+
+The backend processes the returned route information and evaluates available route options.
+
+### Step 6 — Results returned
+
+The backend sends the processed information back to the frontend.
+
+### Step 7 — User sees route options
+
+The frontend displays:
+
+- Route distance
+- Estimated duration
+- Route options
+- Safety-related information
+- Recommended route
+
+---
+
+# 🔌 API Structure
+
+## Get Safe Routes
+
+### Endpoint
+
+```http
+POST /api/routes
+```
+
+### Request
+
+```json
 {
-  "start": "Meerut",
-  "destination": "Delhi",
-  "preferences": {
-    "lighting": true,
-    "isolated": true,
-    "cameras": true,
-    "risk": true
-  }
+  "start": "Aligarh",
+  "destination": "Delhi"
 }
+```
 
-Response
+### Response
+
+The backend returns route information retrieved and processed from the routing service.
+
+Example structure:
+
+```json
 {
   "success": true,
-  "start": "Meerut",
-  "destination": "Delhi",
   "routes": [
     {
-      "id": 1,
-      "name": "Safest Route",
-      "safety": 92,
-      "risk": "Low",
-      "distance": "4.8 km",
-      "time": "18 min"
+      "distance": 135000,
+      "duration": 10800,
+      "safetyScore": 85
     }
   ]
 }
-🧮 Safety Scoring Example
+```
 
-Suppose a route has:
+> The exact response structure may change as the safety-analysis system is expanded.
 
-Lighting       = 90
-Crime Safety   = 85
-CCTV           = 80
-Activity       = 75
-Isolation      = 90
+---
 
-The system calculates:
+# ⚙️ Installation & Setup
 
-90 × 0.30
-85 × 0.25
-80 × 0.15
-75 × 0.10
-90 × 0.20
+## 1. Clone the repository
 
-Result:
+```bash
+git clone https://github.com/YOUR_USERNAME/safe-routes.git
+```
 
-Safety Score ≈ 86/100
+Move into the project:
 
-The route can then be classified as:
+```bash
+cd safe-routes
+```
 
-80–100 → Low Risk
-60–79  → Medium Risk
-0–59   → High Risk
-📊 Route Comparison
+---
 
-SafeRoutes allows users to compare multiple route characteristics.
+# 💻 Frontend Setup
 
-Factor	Safest	Balanced	Fastest
-Safety	🟢 High	🟡 Medium	🔴 Lower
-Distance	Medium	Medium	Short
-Travel Time	Medium	Medium	Fast
-Lighting	High	Medium	Low
-Isolation	Low	Medium	Higher
-CCTV	High	Medium	Lower
+Open a terminal:
 
-This demonstrates the core concept:
+```bash
+cd frontend
+```
 
-The fastest route isn't always the safest route.
+Install dependencies:
 
-👩 Why This Matters for Women
+```bash
+npm install
+```
 
-Women may face additional safety concerns while walking, particularly:
+Start the development server:
 
-At night
-In poorly lit areas
-In isolated locations
-In areas with low pedestrian activity
-In locations with limited surveillance
+```bash
+npm run dev
+```
 
-SafeRoutes aims to provide users with additional information so they can make more informed route choices.
-
-The system is designed to assist users, not guarantee their safety.
-
-🎯 Buildathon MVP
-
-The current MVP focuses on the core problem:
-
-Implemented
- Start and destination input
- Interactive map
- Pedestrian route calculation
- Route comparison
- Safety score
- Risk classification
- Safety preferences
- Lighting consideration
- Isolation consideration
- CCTV consideration
- Crime-risk factor
- Safety-based recommendation
- Route visualization
- OpenRouteService integration
- Demo fallback routing
-🔮 Future Improvements
-1. Real Safety Datasets
-
-Integrate public datasets containing:
-
-Crime statistics
-Street lighting
-CCTV locations
-Police stations
-Emergency facilities
-Pedestrian density
-
-This would make safety scores location-specific rather than relying on demo/default data.
-
-2. Time-Based Safety
-
-Safety can vary throughout the day.
-
-Future scoring could consider:
-
-Morning
-   ↓
-Afternoon
-   ↓
-Evening
-   ↓
-Night
-
-For example, an isolated road may have a different safety score at 2 PM compared with 11 PM.
-
-3. Real-Time Data
-
-Future versions could incorporate:
-
-Traffic
-Crowds
-Road closures
-Public alerts
-Local incidents
-Weather conditions
-4. AI Safety Explanation
-
-An AI assistant could explain:
-
-"Route A is recommended because it has better lighting coverage, higher pedestrian activity, and lower exposure to high-risk areas."
-
-This makes the safety score easier to understand.
-
-5. Emergency Features
-
-Potential future features:
-
-SOS button
-Trusted contacts
-Live location sharing
-Emergency services
-Nearby police stations
-Nearby hospitals
-Safe-zone navigation
-6. Personalized Safety Profiles
-
-Users could define preferences such as:
-
-Safety Priority
-      ↓
-Low ───── Balanced ───── High
-
-The routing algorithm could dynamically adjust its weights.
-
-🔐 Privacy & Security
-
-SafeRoutes should follow privacy-first principles.
-
-Future versions should:
-
-Avoid unnecessary collection of location history
-Protect user location data
-Secure API keys
-Use HTTPS in production
-Avoid storing sensitive location information unnecessarily
-Follow applicable data protection requirements
-
-API keys should always be stored in environment variables.
-
-⚠️ Safety Disclaimer
-
-SafeRoutes provides safety-oriented route recommendations, not guarantees of personal safety.
-
-Safety scores are estimates based on available data and assumptions. Real-world conditions can change rapidly.
-
-Users should always exercise their own judgment and follow local safety guidance.
-
-🌍 Impact
-
-SafeRoutes aims to make navigation more safety-aware, transparent, and user-centered.
-
-Instead of forcing users to choose between:
-
-Fastest
-
-and
-
-Safest
-
-SafeRoutes presents the trade-off clearly:
-
-              SAFETY
-                 ↑
-                 │
-          🟢 Safest
-                 │
-                 │
-          🟡 Balanced
-                 │
-                 │
-          🔴 Fastest
-                 │
-                 └────────────→ TIME
-
-The goal is not simply to find a path.
-
-The goal is to help users choose a path that better matches their safety needs.
-
-🏆 Buildathon Vision
-
-Our vision is to evolve SafeRoutes into a city-scale safety-aware navigation platform.
-
-Today's MVP
-     ↓
-Safety-Weighted Routing
-     ↓
-Real Safety Datasets
-     ↓
-Real-Time Safety Signals
-     ↓
-Personalized Navigation
-     ↓
-AI Safety Assistant
-     ↓
-Safer Urban Mobility
-👨‍💻 Team
-
-Built for:
-
-DevCrest Buildathon '26
-
-Project
-
-SafeRoutes — Safety-Weighted Navigation
-
-Problem Category
-
-Women's Safety / Smart Mobility / Navigation
-
-📜 License
-
-This project is created for educational and hackathon purposes.
-
-You may adapt and extend the project according to the requirements of your competition and the licenses of the third-party technologies and datasets used.
-
-⭐ If you like the idea
-
-Give the project a star ⭐ and consider contributing improvements to make navigation more safety-aware.
-
-
-### One thing I'd change before committing it
-
-Because your current ORS implementation can sometimes return only **one genuinely routed alternative**, I intentionally described the fallback carefully rather than claiming that all three displayed routes are always independently real routes. That's important during judging—don't claim something the implementation doesn't actually guarantee.
-
-For GitHub, your root should ultimately be:
+The frontend will normally be available at:
 
 ```text
-SafeRoutes/
-├── frontend/
-├── backend/
-├── .gitignore
-└── README.md
+http://localhost:5173
+```
 
-And your first commit can be:
+---
 
+# 🖥️ Backend Setup
+
+Open another terminal:
+
+```bash
+cd backend
+```
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Start the backend:
+
+```bash
+npm start
+```
+
+For development, if your project uses nodemon:
+
+```bash
+npm run dev
+```
+
+The backend will normally run on:
+
+```text
+http://localhost:5000
+```
+
+---
+
+# 🔐 Environment Variables
+
+Create a `.env` file inside the backend folder.
+
+Example:
+
+```env
+PORT=5000
+
+ORS_API_KEY=your_api_key_here
+
+CLIENT_URL=http://localhost:5173
+```
+
+If additional APIs or databases are added later, their credentials should also be stored in `.env`.
+
+### ⚠️ Never commit `.env`
+
+Make sure your `.gitignore` contains:
+
+```gitignore
+node_modules/
+.env
+.env.local
+dist/
+```
+
+---
+
+# 🔑 API Key Security
+
+Never write your API key directly inside frontend code.
+
+❌ Don't do this:
+
+```javascript
+const API_KEY = "your-secret-api-key";
+```
+
+Instead, store it in the backend `.env` file:
+
+```env
+ORS_API_KEY=your-secret-api-key
+```
+
+Then access it from Node.js:
+
+```javascript
+process.env.ORS_API_KEY;
+```
+
+This prevents exposing your secret API key to users through the browser.
+
+---
+
+# 🌐 Frontend API Configuration
+
+The frontend communicates with the backend through Axios.
+
+Example:
+
+```javascript
+import axios from "axios";
+
+const API = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000/api",
+
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
+
+export const getSafeRoutes = async (data) => {
+  const response = await API.post("/routes", data);
+  return response.data;
+};
+```
+
+---
+
+# 🚀 Deployment
+
+Safe-Routes can be deployed using modern cloud platforms.
+
+## Frontend
+
+The React/Vite frontend can be deployed on:
+
+```text
+Vercel
+```
+
+Example production frontend:
+
+```text
+https://safe-routes-eight.vercel.app
+```
+
+## Backend
+
+The Express backend can be deployed using platforms such as:
+
+- Render
+- Railway
+- Fly.io
+- AWS
+
+After deployment, update the frontend API URL.
+
+Example:
+
+```env
+VITE_API_URL=https://your-backend-url.com/api
+```
+
+---
+
+# 🌍 Production CORS
+
+The backend should allow requests from your production frontend.
+
+Example:
+
+```javascript
+cors({
+  origin: [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "https://safe-routes-eight.vercel.app",
+  ],
+});
+```
+
+For production, environment variables are preferable to hardcoding URLs.
+
+---
+
+# 📸 Screenshots
+
+Add screenshots of your project here after the UI is finalized.
+
+Example:
+
+```markdown
+## 📸 Screenshots
+
+### Home Page
+
+![Safe-Routes Home](./screenshots/home.png)
+
+### Route Search
+
+![Route Search](./screenshots/routes.png)
+
+### Route Results
+
+![Route Results](./screenshots/results.png)
+```
+
+Recommended screenshots:
+
+1. Home page
+2. Route search page
+3. Route results
+4. Safe route recommendation
+5. Mobile responsive view
+
+---
+
+# 🎯 Target Users
+
+Safe-Routes can be useful for:
+
+- 👩 Women travelling alone
+- 🎓 Students
+- 🚶 Pedestrians
+- 🚴 Cyclists
+- 🌙 People travelling at night
+- 🧳 Travellers in unfamiliar areas
+- 👨‍👩‍👧 Families
+- 🚗 General commuters
+
+---
+
+# 🌟 Key Advantages
+
+### Traditional Navigation
+
+```text
+Shortest Route
+       ↓
+Fastest Route
+       ↓
+Navigation
+```
+
+### Safe-Routes
+
+```text
+Available Routes
+       ↓
+Route Information
+       ↓
+Safety Analysis
+       ↓
+Route Comparison
+       ↓
+Safer Route Recommendation
+```
+
+This makes Safe-Routes more focused on **personal safety and informed route selection**.
+
+---
+
+# 🔮 Future Enhancements
+
+The project can be expanded significantly.
+
+### 🚨 Emergency Mode
+
+Add an emergency mode that can:
+
+- Share live location
+- Contact emergency contacts
+- Provide quick access to emergency services
+- Automatically send the current route
+
+### 👮 Safety Hotspots
+
+Display areas with reported:
+
+- Crime incidents
+- Accidents
+- Unsafe locations
+- Other safety concerns
+
+### 🌙 Night Safety
+
+Allow users to select:
+
+```text
+Day Mode
+Night Mode
+```
+
+and apply different safety considerations.
+
+### 📍 Live Location
+
+Track the user's current location using browser geolocation.
+
+### 📊 Advanced Safety Score
+
+Develop a more sophisticated scoring system.
+
+Example:
+
+```text
+Safety Score =
+    Lighting
+  + Crime Data
+  + Road Conditions
+  + Traffic
+  + Public Activity
+  + Distance
+  + Time of Day
+```
+
+### 🤖 AI Safety Assistant
+
+An AI assistant could answer questions such as:
+
+> "Which route should I take if I'm travelling alone at 10 PM?"
+
+### 🗺️ Heatmap
+
+Display safety information on a map:
+
+```text
+🟢 Low Risk
+🟡 Medium Risk
+🔴 High Risk
+```
+
+### 👥 Community Reports
+
+Allow users to report:
+
+- Unsafe streets
+- Harassment-prone areas
+- Road damage
+- Poor lighting
+- Accidents
+- Suspicious activity
+
+---
+
+# 🧠 Future AI Integration
+
+An AI-based recommendation layer could eventually analyze multiple factors.
+
+For example:
+
+```text
+User:
+Travelling alone
+↓
+Time:
+10:30 PM
+↓
+Routes:
+A, B, C
+↓
+Safety Data
+↓
+AI Analysis
+↓
+Recommended Route
+```
+
+The AI could explain the recommendation in simple language:
+
+> **Recommended Route:** Route B
+> It is slightly longer but has a better safety score and avoids higher-risk areas.
+
+---
+
+# 📈 Future Roadmap
+
+## Phase 1 — Foundation
+
+- [x] React frontend
+- [x] Node.js backend
+- [x] Express API
+- [x] Route API integration
+- [x] Basic route search
+
+## Phase 2 — Route Intelligence
+
+- [ ] Route comparison
+- [ ] Safety scoring
+- [ ] Safety indicators
+- [ ] Better route recommendations
+
+## Phase 3 — Safety Features
+
+- [ ] Safety hotspots
+- [ ] Community reports
+- [ ] Night travel mode
+- [ ] Emergency contacts
+- [ ] Live location
+
+## Phase 4 — AI
+
+- [ ] AI safety assistant
+- [ ] Personalized route recommendations
+- [ ] Risk prediction
+- [ ] Natural-language route explanations
+
+## Phase 5 — Production
+
+- [ ] Authentication
+- [ ] Database
+- [ ] Analytics
+- [ ] Performance optimization
+- [ ] Security improvements
+- [ ] Mobile optimization
+- [ ] Full production deployment
+
+---
+
+# 🔒 Security Considerations
+
+Safe-Routes should follow good security practices:
+
+- API keys stored in environment variables
+- `.env` excluded from Git
+- Input validation
+- CORS configuration
+- HTTPS in production
+- Secure API endpoints
+- Rate limiting
+- Error handling
+- Protection against malicious input
+
+---
+
+# 🧪 Testing
+
+Before deployment, test:
+
+### Frontend
+
+```text
+✓ Location input
+✓ Destination input
+✓ Form validation
+✓ API requests
+✓ Loading states
+✓ Error states
+✓ Route rendering
+✓ Responsive design
+```
+
+### Backend
+
+```text
+✓ API endpoint
+✓ Request validation
+✓ External API communication
+✓ Error handling
+✓ Invalid locations
+✓ Missing API key
+✓ API failures
+✓ CORS
+```
+
+---
+
+# 🐛 Troubleshooting
+
+## Backend not connecting
+
+Check:
+
+```text
+Backend → http://localhost:5000
+Frontend → http://localhost:5173
+```
+
+Make sure both servers are running.
+
+---
+
+## CORS Error
+
+Check the backend CORS configuration and ensure the frontend URL is included.
+
+Example:
+
+```javascript
+origin: ["http://localhost:5173", "http://127.0.0.1:5173"];
+```
+
+---
+
+## API Key Error
+
+Check that `.env` contains:
+
+```env
+ORS_API_KEY=your_api_key
+```
+
+Then restart the backend.
+
+Environment changes normally require restarting the Node.js server.
+
+---
+
+## Route API Not Working
+
+Check:
+
+1. API key is valid
+2. API service is enabled
+3. Backend is running
+4. Internet connection is available
+5. Request coordinates are valid
+6. API quota has not been exceeded
+
+---
+
+# 🤝 Contributing
+
+Contributions are welcome!
+
+### 1. Fork the repository
+
+```bash
+git fork
+```
+
+### 2. Clone your fork
+
+```bash
+git clone https://github.com/YOUR_USERNAME/safe-routes.git
+```
+
+### 3. Create a branch
+
+```bash
+git checkout -b feature/new-feature
+```
+
+### 4. Make your changes
+
+### 5. Commit
+
+```bash
 git add .
-git commit -m "feat: build SafeRoutes safety-weighted navigation MVP"
-git push origin main
-````
+git commit -m "feat: add new safety feature"
+```
+
+### 6. Push
+
+```bash
+git push origin feature/new-feature
+```
+
+### 7. Create a Pull Request
+
+---
+
+# 📜 License
+
+This project is currently intended for **educational, portfolio, and development purposes**.
+
+A formal open-source license can be added later, such as the MIT License.
+
+---
+
+# ⚠️ Disclaimer
+
+Safe-Routes is intended to provide **safety-oriented route information**, not a guarantee that a particular route is completely safe.
+
+Safety conditions can change due to:
+
+- Time
+- Weather
+- Traffic
+- Local events
+- Road conditions
+- Crime/activity changes
+- Data availability
+
+Users should always use their own judgment and follow local safety guidance.
+
+---
+
+# 👨‍💻 Developer
+
+**Lovesh Semwal**
+
+B.Tech Computer Science Student
+
+Interested in:
+
+- Full-Stack Development
+- React.js
+- Node.js
+- Backend Development
+- APIs
+- AI-powered applications
+- Problem Solving
+- Software Development
+
+---
+
+# ⭐ Support
+
+If you find this project useful, consider giving the repository a ⭐ on GitHub.
+
+---
+
+## 💬 Project Vision
+
+> **Safe-Routes is built with a simple idea: navigation should not only help people reach their destination — it should help them make safer decisions along the way.**
+
+**Built with ❤️ using React, Node.js, Express and real-world routing data.**
