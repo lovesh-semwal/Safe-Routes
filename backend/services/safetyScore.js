@@ -1,92 +1,67 @@
-const axios = require("axios");
+const { fetchRealSafetyFactors } = require("./overpassSafety");
 
-const OVERPASS_URL = "https://overpass-api.de/api/interpreter";
-const SEARCH_RADIUS_M = 200; // how far around each sampled point to look
+const FALLBACK_FACTORS = { lighting: 65, cameras: 55, crime: 65, activity: 60, isolation: 60 };
 
-// Pick a handful of evenly spaced points along the route so the Overpass
-// query stays small and fast, instead of querying every single coordinate.
-function samplePoints(coordinates, maxPoints = 6) {
-  if (coordinates.length <= maxPoints) return coordinates;
-  const step = (coordinates.length - 1) / (maxPoints - 1);
-  const points = [];
-  for (let i = 0; i < maxPoints; i++) {
-    points.push(coordinates[Math.round(i * step)]);
-  }
-  return points;
+async function calculateRouteSafety(routes, preferences = {}) {
+  return Promise.all(
+    routes.map(async (route) => {
+      let factors;
+      try {
+        factors = await fetchRealSafetyFactors(route.coordinates);
+      } catch (err) {
+        console.error(`Overpass lookup failed for route ${route.id}:`, err.message);
+        factors = { ...FALLBACK_FACTORS };
+      }
+
+      let { lighting, cameras, crime, activity, isolation } = factors;
+
+      if (preferences.lighting) lighting *= 1.15;
+      if (preferences.cameras) cameras *= 1.1;
+      if (preferences.isolated) {
+        isolation *= 1.15;
+        activity *= 1.05;
+      }
+      if (preferences.risk) crime *= 1.15;
+
+      lighting = Math.min(Math.round(lighting), 100);
+      cameras = Math.min(Math.round(cameras), 100);
+      crime = Math.min(Math.round(crime), 100);
+      activity = Math.min(Math.round(activity), 100);
+      isolation = Math.min(Math.round(isolation), 100);
+
+      const safety = Math.round(
+        lighting * 0.3 + crime * 0.25 + cameras * 0.15 + activity * 0.1 + isolation * 0.2
+      );
+
+      let risk = "High";
+      if (safety >= 80) risk = "Low";
+      else if (safety >= 60) risk = "Medium";
+
+      return {
+        id: route.id,
+        name: route.name,
+        distance: route.distance,
+        time: route.time,
+        safety,
+        risk,
+        factors: { lighting, cameras, crime, activity, isolation },
+        reasons: generateReasons({ lighting, cameras, crime, activity, isolation }, safety),
+        recommended: false,
+      };
+    })
+  );
 }
 
-function buildQuery(points) {
-  const around = (tagFilter) =>
-    points
-      .map(([lat, lng]) => `node["${tagFilter}"](around:${SEARCH_RADIUS_M},${lat},${lng});`)
-      .join("\n");
-
-  return `
-    [out:json][timeout:20];
-    (
-      ${around('highway"="street_lamp')}
-      ${points
-        .map(([lat, lng]) => `node["man_made"="surveillance"](around:${SEARCH_RADIUS_M},${lat},${lng});`)
-        .join("\n")}
-      ${points
-        .map(([lat, lng]) => `node["amenity"="police"](around:800,${lat},${lng});`)
-        .join("\n")}
-      ${points
-        .map(
-          ([lat, lng]) =>
-            `node["shop"](around:${SEARCH_RADIUS_M},${lat},${lng});
-             node["amenity"~"restaurant|cafe|shop|pharmacy|bank"](around:${SEARCH_RADIUS_M},${lat},${lng});`
-        )
-        .join("\n")}
-    );
-    out tags;
-  `;
+function generateReasons(f, safety) {
+  const reasons = [];
+  if (f.lighting >= 80) reasons.push("Good lighting coverage");
+  if (f.cameras >= 80) reasons.push("Strong camera coverage");
+  if (f.crime >= 80) reasons.push("Lower crime-risk exposure");
+  if (f.activity >= 80) reasons.push("Good pedestrian activity");
+  if (f.isolation >= 80) reasons.push("Low isolation risk");
+  if (reasons.length === 0) reasons.push("Higher safety risk detected");
+  if (safety >= 80) reasons.push("Recommended based on safety analysis");
+  return reasons.slice(0, 3);
 }
 
-// Turn raw OSM counts into 0-100 scores. These scaling constants are
-// tuned so a normal city street lands mid-range and a well-lit main
-// road with shops lands high - not scientifically precise, but grounded
-// in real counted features rather than invented numbers.
-function normalize(count, perUnit, cap = 100) {
-  return Math.min(cap, Math.round(count * perUnit));
-}
-
-async function fetchRealSafetyFactors(coordinates) {
-  const points = samplePoints(coordinates);
-  const query = buildQuery(points);
-
-  const response = await axios.post(OVERPASS_URL, query, {
-    headers: { "Content-Type": "text/plain" },
-    timeout: 15000,
-  });
-
-  const elements = response.data.elements || [];
-
-  const lampCount = elements.filter((e) => e.tags?.highway === "street_lamp").length;
-  const cameraCount = elements.filter((e) => e.tags?.man_made === "surveillance").length;
-  const policeCount = elements.filter((e) => e.tags?.amenity === "police").length;
-  const activityCount = elements.filter(
-    (e) => e.tags?.shop || ["restaurant", "cafe", "pharmacy", "bank"].includes(e.tags?.amenity)
-  ).length;
-
-  const lighting = normalize(lampCount, 6, 100);
-  const cameras = normalize(cameraCount, 20, 100);
-  const activity = normalize(activityCount, 4, 100);
-  const isolation = Math.min(100, 40 + activityCount * 3 + policeCount * 10); // higher = less isolated/safer
-
-  // No free real crime dataset exists for most regions (India included).
-  // Rather than invent an unrelated number, derive it as an honest
-  // composite of the real signals we do have.
-  const crime = Math.round((lighting + isolation + activity) / 3);
-
-  return {
-    lighting,
-    cameras,
-    crime,
-    activity,
-    isolation,
-    rawCounts: { lampCount, cameraCount, policeCount, activityCount },
-  };
-}
-
-module.exports = { fetchRealSafetyFactors };
+module.exports = { calculateRouteSafety };

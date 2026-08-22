@@ -236,36 +236,7 @@ function Map({
         })}
 
         {/* RISK ZONE */}
-        <Circle
-          center={[28.9875, 77.714]}
-          radius={250}
-          pathOptions={{
-            color: "#ef4444",
-            fillColor: "#ef4444",
-            fillOpacity: 0.15,
-          }}
-        >
-          <Popup>
-            <strong>🚨 Potential Risk Zone</strong>
-            <br />
-            Increased safety risk detected.
-          </Popup>
-        </Circle>
-
-        {/* POOR LIGHTING ZONE */}
-        <Circle
-          center={[28.984, 77.716]}
-          radius={150}
-          pathOptions={{
-            color: "#f59e0b",
-            fillColor: "#f59e0b",
-            fillOpacity: 0.12,
-          }}
-        >
-          <Popup>
-            <strong>💡 Poor Lighting Area</strong>
-          </Popup>
-        </Circle>
+        
       </MapContainer>
     </div>
   );

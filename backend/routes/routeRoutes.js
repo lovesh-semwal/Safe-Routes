@@ -1,70 +1,72 @@
-const { fetchRealSafetyFactors } = require("../services/overpassSafety");
+const express = require("express");
+const { calculateRouteSafety } = require("../services/safetyScore");
+const { getRoutes } = require("../services/routing");
 
-// Fallback factors used ONLY if Overpass fails (e.g. offline during demo) -
-// keeps the app from crashing, but this path should rarely trigger.
-const FALLBACK_FACTORS = { lighting: 65, cameras: 55, crime: 65, activity: 60, isolation: 60 };
+const router = express.Router();
 
-async function calculateRouteSafety(routes, preferences = {}) {
-  return Promise.all(
-    routes.map(async (route) => {
-      let factors;
-      try {
-        factors = await fetchRealSafetyFactors(route.coordinates);
-      } catch (err) {
-        console.error(`Overpass lookup failed for route ${route.id}:`, err.message);
-        factors = { ...FALLBACK_FACTORS };
-      }
+router.post("/", async (req, res) => {
+  try {
+    const { start, destination, preferences = {} } = req.body;
 
-      let { lighting, cameras, crime, activity, isolation } = factors;
+    if (!start || !destination) {
+      return res.status(400).json({
+        success: false,
+        message: "Start and destination are required",
+      });
+    }
 
-      // Preferences bump the weight of factors the user cares about
-      if (preferences.lighting) lighting *= 1.15;
-      if (preferences.cameras) cameras *= 1.1;
-      if (preferences.isolated) {
-        isolation *= 1.15;
-        activity *= 1.05;
-      }
-      if (preferences.risk) crime *= 1.15;
+    // Get actual routes or fallback demo routes
+    const routingResult = await getRoutes(start, destination);
 
-      lighting = Math.min(Math.round(lighting), 100);
-      cameras = Math.min(Math.round(cameras), 100);
-      crime = Math.min(Math.round(crime), 100);
-      activity = Math.min(Math.round(activity), 100);
-      isolation = Math.min(Math.round(isolation), 100);
+    // Calculate safety USING the real route coordinates this time
+    const safetyRoutes = await calculateRouteSafety(
+      routingResult.routes,
+      preferences
+    );
 
-      const safety = Math.round(
-        lighting * 0.3 + crime * 0.25 + cameras * 0.15 + activity * 0.1 + isolation * 0.2
-      );
-
-      let risk = "High";
-      if (safety >= 80) risk = "Low";
-      else if (safety >= 60) risk = "Medium";
+    // Combine routing + safety data (now matched by id, not array index)
+    const routes = routingResult.routes.map((route) => {
+      const safety =
+        safetyRoutes.find((s) => s.id === route.id) || safetyRoutes[0];
 
       return {
-        id: route.id,
-        name: route.name,
-        distance: route.distance,
-        time: route.time,
-        safety,
-        risk,
-        factors: { lighting, cameras, crime, activity, isolation },
-        reasons: generateReasons({ lighting, cameras, crime, activity, isolation }, safety),
+        ...route,
+        safety: safety.safety,
+        risk: safety.risk,
+        factors: safety.factors,
+        reasons: safety.reasons,
         recommended: false,
       };
-    })
-  );
-}
+    });
 
-function generateReasons(f, safety) {
-  const reasons = [];
-  if (f.lighting >= 80) reasons.push("Good lighting coverage");
-  if (f.cameras >= 80) reasons.push("Strong camera coverage");
-  if (f.crime >= 80) reasons.push("Lower crime-risk exposure");
-  if (f.activity >= 80) reasons.push("Good pedestrian activity");
-  if (f.isolation >= 80) reasons.push("Low isolation risk");
-  if (reasons.length === 0) reasons.push("Higher safety risk detected");
-  if (safety >= 80) reasons.push("Recommended based on safety analysis");
-  return reasons.slice(0, 3);
-}
+    // Find safest route
+    const recommendedRoute = routes.reduce(
+      (best, current) => (current.safety > best.safety ? current : best),
+      routes[0]
+    );
 
-module.exports = { calculateRouteSafety };
+    // Mark recommended route
+    routes.forEach((route) => {
+      route.recommended = route.id === recommendedRoute.id;
+    });
+
+    res.json({
+      success: true,
+      start,
+      destination,
+      startCoordinates: routingResult.start,
+      destinationCoordinates: routingResult.destination,
+      routes,
+      recommendedRoute,
+      usingRealRouting: Boolean(process.env.ORS_API_KEY),
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Unable to calculate routes",
+    });
+  }
+});
+
+module.exports = router;

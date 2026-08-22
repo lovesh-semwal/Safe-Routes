@@ -6,7 +6,6 @@ const demoCoordinates = {
   destination: [77.7198, 28.9905],
 };
 
-// Demo route coordinates are returned to frontend as [lat, lng]
 const demoRoutes = [
   {
     id: 1,
@@ -46,15 +45,46 @@ const demoRoutes = [
   },
 ];
 
-async function getRoutes(start, destination) {
-  // -----------------------------------------
-  // NO API KEY → USE DEMO ROUTES
-  // -----------------------------------------
-  if (!process.env.ORS_API_KEY) {
-    console.log(
-      "No ORS API key found. Using demo routes."
-    );
+function formatRoutes(features) {
+  return features.map((feature, index) => {
+    const coordinates = feature.geometry.coordinates.map(([lng, lat]) => [lat, lng]);
+    const summary = feature.properties.summary;
 
+    return {
+      id: index + 1,
+      name: index === 0 ? "Recommended Route" : `Alternative Route ${index}`,
+      coordinates,
+      distance: `${(summary.distance / 1000).toFixed(1)} km`,
+      time: `${Math.round(summary.duration / 60)} min`,
+    };
+  });
+}
+
+async function requestDirections(startCoordinates, destinationCoordinates, useAlternatives) {
+  const body = {
+    coordinates: [startCoordinates, destinationCoordinates],
+  };
+  if (useAlternatives) {
+    body.alternative_routes = { share_factor: 0.6, target_count: 3 };
+  }
+
+  const response = await axios.post(
+    "https://api.openrouteservice.org/v2/directions/foot-walking/geojson",
+    body,
+    {
+      headers: {
+        Authorization: process.env.ORS_API_KEY,
+        "Content-Type": "application/json",
+      },
+    }
+  );
+
+  return response.data.features || [];
+}
+
+async function getRoutes(start, destination) {
+  if (!process.env.ORS_API_KEY) {
+    console.log("No ORS API key found. Using demo routes.");
     return {
       start: demoCoordinates.start,
       destination: demoCoordinates.destination,
@@ -62,161 +92,69 @@ async function getRoutes(start, destination) {
     };
   }
 
+  console.log("Getting real routes from ORS...");
+
+  const startCoordinates = await geocodeLocation(start);
+  const destinationCoordinates = await geocodeLocation(destination);
+
+  console.log("Start coordinates:", startCoordinates);
+  console.log("Destination coordinates:", destinationCoordinates);
+
+  // Try WITH alternative routes first (best case: 3 real, distinct routes)
   try {
-    console.log("Getting real routes from ORS...");
-
-    // -----------------------------------------
-    // GEOCODE START
-    // -----------------------------------------
-    const startCoordinates =
-      await geocodeLocation(start);
-
-    // -----------------------------------------
-    // GEOCODE DESTINATION
-    // -----------------------------------------
-    const destinationCoordinates =
-      await geocodeLocation(destination);
-
-    console.log(
-      "Start coordinates:",
-      startCoordinates
-    );
-
-    console.log(
-      "Destination coordinates:",
-      destinationCoordinates
-    );
-
-    // -----------------------------------------
-    // GET ROUTES
-    // -----------------------------------------
-    const response = await axios.post(
-      "https://api.openrouteservice.org/v2/directions/foot-walking/geojson",
-      {
-        coordinates: [
-          startCoordinates,
-          destinationCoordinates,
-        ],
-        alternative_routes: {
-          share_factor: 0.6,
-          target_count: 3,
-        },
-      },
-      {
-        headers: {
-          Authorization:
-            process.env.ORS_API_KEY,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    const features =
-      response.data.features || [];
-
-    if (features.length === 0) {
-      throw new Error(
-        "No routes returned from OpenRouteService"
-      );
-    }
-
-    // -----------------------------------------
-    // FORMAT ROUTES FOR FRONTEND
-    // -----------------------------------------
-    const routes = features.map(
-      (feature, index) => {
-        const coordinates =
-          feature.geometry.coordinates.map(
-            ([lng, lat]) => [lat, lng]
-          );
-
-        const summary =
-          feature.properties.summary;
-
-        return {
-          id: index + 1,
-
-          name:
-            index === 0
-              ? "Recommended Route"
-              : `Alternative Route ${index}`,
-
-          coordinates,
-
-          distance: `${(
-            summary.distance / 1000
-          ).toFixed(1)} km`,
-
-          time: `${Math.round(
-            summary.duration / 60
-          )} min`,
-        };
-      }
-    );
+    const features = await requestDirections(startCoordinates, destinationCoordinates, true);
+    if (features.length === 0) throw new Error("No routes returned from OpenRouteService");
 
     return {
-      // IMPORTANT:
-      // These are [lng, lat]
       start: startCoordinates,
       destination: destinationCoordinates,
-
-      routes,
+      routes: formatRoutes(features),
     };
   } catch (error) {
-    console.error(
-      "Routing API failed:",
-      error.response?.data ||
-        error.message
-    );
+    const orsCode = error.response?.data?.error?.code;
 
-    console.log(
-      "Falling back to demo routes."
-    );
+    // Code 2004 = route too long for the alternative-routes algorithm.
+    // Retry with a single real route instead of giving up.
+    if (orsCode === 2004) {
+      console.log("Distance too long for alternatives — retrying with a single real route.");
+      try {
+        const features = await requestDirections(startCoordinates, destinationCoordinates, false);
+        if (features.length === 0) throw new Error("No route returned from OpenRouteService");
 
-    return {
-      start: demoCoordinates.start,
-      destination:
-        demoCoordinates.destination,
-      routes: demoRoutes,
-    };
+        return {
+          start: startCoordinates,
+          destination: destinationCoordinates,
+          routes: formatRoutes(features),
+          note: "Only one real route was available — this trip is too long for route alternatives (100km limit). This app is designed for walking-scale distances within a city.",
+        };
+      } catch (retryError) {
+        console.error("Single-route retry also failed:", retryError.response?.data || retryError.message);
+        throw new Error(
+          "This trip is too far for walking directions. Try two points within the same city."
+        );
+      }
+    }
+
+    console.error("Routing API failed:", error.response?.data || error.message);
+    throw new Error("Unable to fetch real routes right now. Please try again.");
   }
 }
 
-// -----------------------------------------
-// GEOCODING
-// -----------------------------------------
-
 async function geocodeLocation(location) {
-  const response = await axios.get(
-    "https://api.openrouteservice.org/geocode/search",
-    {
-      params: {
-        api_key:
-          process.env.ORS_API_KEY,
+  const response = await axios.get("https://api.openrouteservice.org/geocode/search", {
+    params: {
+      api_key: process.env.ORS_API_KEY,
+      text: location,
+      size: 1,
+    },
+  });
 
-        text: location,
-
-        size: 1,
-      },
-    }
-  );
-
-  const features =
-    response.data.features;
-
-  if (
-    !features ||
-    features.length === 0
-  ) {
-    throw new Error(
-      `Location not found: ${location}`
-    );
+  const features = response.data.features;
+  if (!features || features.length === 0) {
+    throw new Error(`Location not found: ${location}`);
   }
 
-  // ORS returns [lng, lat]
   return features[0].geometry.coordinates;
 }
 
-module.exports = {
-  getRoutes,
-};
+module.exports = { getRoutes };
