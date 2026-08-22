@@ -3,6 +3,7 @@ const cors = require("cors");
 require("dotenv").config();
 
 const routeRoutes = require("./routes/routeRoutes");
+console.log("routeRoutes is:", typeof routeRoutes, routeRoutes);
 
 const app = express();
 
