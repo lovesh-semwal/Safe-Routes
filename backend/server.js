@@ -3,18 +3,41 @@ const cors = require("cors");
 require("dotenv").config();
 
 const routeRoutes = require("./routes/routeRoutes");
-console.log("routeRoutes is:", typeof routeRoutes, routeRoutes);
+
+console.log("routeRoutes is:", typeof routeRoutes);
 
 const app = express();
 
+// CORS
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+  "https://safe-routes-eight.vercel.app",
+];
+
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: function (origin, callback) {
+      // Allow requests without an origin
+      // (Postman, curl, etc.)
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error("Not allowed by CORS"));
+    },
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
 app.use(express.json());
 
+// Health check
 app.get("/", (req, res) => {
   res.json({
     success: true,
@@ -22,8 +45,10 @@ app.get("/", (req, res) => {
   });
 });
 
+// Routes
 app.use("/api/routes", routeRoutes);
 
+// Error handler
 app.use((err, req, res, next) => {
   console.error(err);
 
@@ -33,8 +58,9 @@ app.use((err, req, res, next) => {
   });
 });
 
+// Render provides PORT
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
-  console.log(`SafeRoutes backend running on http://localhost:${PORT}`);
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`SafeRoutes backend running on port ${PORT}`);
 });
