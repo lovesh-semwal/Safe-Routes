@@ -4,36 +4,23 @@ require("dotenv").config();
 
 const routeRoutes = require("./routes/routeRoutes");
 
-console.log("routeRoutes is:", typeof routeRoutes);
-
 const app = express();
 
 // CORS
-const allowedOrigins = [
-  "http://localhost:5173",
-  "http://127.0.0.1:5173",
-  "https://safe-routes-eight.vercel.app",
-];
-
 app.use(
   cors({
-    origin: function (origin, callback) {
-      // Allow requests without an origin
-      // (Postman, curl, etc.)
-      if (!origin) {
-        return callback(null, true);
-      }
-
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-
-      return callback(new Error("Not allowed by CORS"));
-    },
+    origin: [
+      "http://localhost:5173",
+      "http://127.0.0.1:5173",
+      "https://safe-routes-eight.vercel.app",
+    ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
+
+// Handle preflight requests
+app.options("*", cors());
 
 app.use(express.json());
 
@@ -58,7 +45,6 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Render provides PORT
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, "0.0.0.0", () => {
